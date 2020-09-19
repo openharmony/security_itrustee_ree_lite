@@ -123,7 +123,7 @@ static int FindOpenFile(int fd, struct OpenedFile **file)
             }
         }
         p = p->next;
-    } while (p != g_firstFile && p != NULL);
+    } while ((p != g_firstFile) && (p != NULL));
 
     if (!findFlag) {
         p = NULL;
@@ -170,7 +170,7 @@ static int CheckPathLen(const char *path, size_t pathLen)
 {
     uint32_t i = 0;
 
-    while (i < pathLen && path[i] != '\0') {
+    while ((i < pathLen) && (path[i] != '\0')) {
         i++;
     }
     if (i >= pathLen) {
@@ -221,7 +221,6 @@ static int CreateDir(const char *path, size_t pathLen)
                 tloge("mkdir %s fail\n", pathTemp);
                 free(pathTemp);
                 pathTemp = NULL;
-                (void)pathTemp;
                 return -1;
             }
 
@@ -233,7 +232,6 @@ static int CreateDir(const char *path, size_t pathLen)
 
     free(pathTemp);
     pathTemp = NULL;
-    (void)pathTemp;
     return 0;
 }
 
@@ -891,14 +889,14 @@ static int CopyFile(const char *fromPath, const char *toPath)
     }
 
     ret = DoCopy(fromFd, toFd);
+    close(fromFd);
+    close(toFd);
     if (ret != 0) {
         tloge("do copy from %s to %s failed\n", realFromPath, realToPath);
     } else {
         ChownSecStorageDataToSystem((char *)realToPath, 1);
     }
 
-    close(fromFd);
-    close(toFd);
     return ret;
 }
 
@@ -1001,7 +999,7 @@ static void FsyncWork(struct SecStorageType *transControl)
         }
 
         /* second,fsync memory from kernel to disk */
-        int fd  = fileno(selFile->file);
+        int fd = fileno(selFile->file);
         ret = fsync(fd);
         if (ret != 0) {
             tloge("fsync:fsync file failed: %s\n", strerror(errno));
@@ -1130,7 +1128,7 @@ static void *FsWorkThread(void *control)
     }
 
     transControl->magic = AGENT_FS_ID;
-    while (1) {
+    while (true) {
         tlogv("++ fs agent loop ++\n");
         ret = ioctl(g_fsFd, (int)TC_NS_CLIENT_IOCTL_WAIT_EVENT, AGENT_FS_ID);
         if (ret) {
@@ -1213,7 +1211,7 @@ static void *MiscWorkThread(void *control)
     }
 
     transControl->magic = AGENT_MISC_ID;
-    while (1) {
+    while (true) {
         tlogv("++ misc agent loop ++\n");
         int ret = ioctl(g_miscFd, (int)TC_NS_CLIENT_IOCTL_WAIT_EVENT, AGENT_MISC_ID);
         if (ret) {
@@ -1319,11 +1317,11 @@ static void *InitLateWorkThread(void *dummy)
     }
 
     int ret = ioctl(fd, (int)TC_NS_CLIENT_IOCTL_LATEINIT, index);
+    close(fd);
+    fd = -1;
     if (ret) {
         tloge("failed to set late init.\n");
     }
-
-    close(fd);
     return NULL;
 }
 
@@ -1358,8 +1356,8 @@ static int ProcessAgentInit(void)
 
     SetSecLoadAgentFd(ret);
     tloge("processAgent init ok\n");
-
     return 0;
+
 ERROR2:
     AgentExit(AGENT_MISC_ID, g_miscFd);
     g_miscFd      = -1;
