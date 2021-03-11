@@ -32,30 +32,32 @@
 #define HASH_FILE_MAX_SIZE (16 * 1024)
 #define VENDOR_HASH_FILE "/vendor/bin/native_packages.xml"
 
-static bool IsInvalidFilename(const char *path)
+static int IsNotValidFname(const char *path)
 {
     if (path == NULL) {
         tloge("filename is invalid ...\n");
-        return true;
+        return 1;
     }
 
     /* filter the .. dir in the pname: */
     if (strstr(path, "..") != NULL) {
         tloge("filename should not include .. dir\n");
-        return true;
+        return 1;
     }
 
-    return false;
+    return 0;
 }
 
 static int GetFileSize(const char *path)
 {
     FILE *fp = NULL;
+    int ret;
     int fileSize                = -1;
     char realPath[PATH_MAX + 1] = { 0 };
 
-    if ((path == NULL) || (strlen(path) > PATH_MAX) || IsInvalidFilename(path) ||
-        realpath(path, realPath) == NULL)) {
+    bool paramInvlid = ((path == NULL) || (IsNotValidFname(path) != 0) || (strlen(path) > PATH_MAX) ||
+                        (realpath(path, realPath) == NULL));
+    if (paramInvlid) {
         return fileSize;
     }
 
@@ -64,12 +66,16 @@ static int GetFileSize(const char *path)
         return fileSize;
     }
 
-    if (fseek(fp, 0L, SEEK_END) == 0) {
-        fileSize = (int)ftell(fp);
+    ret = fseek(fp, 0L, SEEK_END);
+    if (ret < 0) {
+        fclose(fp);
+        fp = NULL;
+        return fileSize;
     }
+
+    fileSize = (int)ftell(fp);
     fclose(fp);
     fp = NULL;
-
     return fileSize;
 }
 
@@ -79,8 +85,9 @@ static int GetFileInfo(int bufLen, uint8_t *buffer, const char *path)
     int fileSize;
     char realPath[PATH_MAX + 1] = { 0 };
 
-    if ((buffer == NULL) || (path == NULL) || bufLen < sizeof(int) || (strlen(path) > PATH_MAX) ||
-        IsInvalidFilename(path) || (realpath(path, realPath) == NULL)) {
+    bool paramInvlid = ((buffer == NULL) || (path == NULL) || (IsNotValidFname(path) != 0) || bufLen < sizeof(int) ||
+                        (strlen(path) > PATH_MAX) || (realpath(path, realPath) == NULL));
+    if (paramInvlid) {
         return -1;
     }
 
@@ -91,20 +98,25 @@ static int GetFileInfo(int bufLen, uint8_t *buffer, const char *path)
     }
 
     fileSize = (int)fread(buffer, sizeof(char), (unsigned int)bufLen, fp);
-    fclose(fp);
-    fp = NULL;
-    if ((fileSize != bufLen) || (*(unsigned int *)buffer) != fileSize) {
+    if (fileSize != bufLen || (*(unsigned int *)buffer) != fileSize) {
         tloge("read file read number:%d\n", fileSize);
+        fclose(fp);
+        fp = NULL;
         return -1;
     }
+
+    fclose(fp);
+    fp = NULL;
     return 0;
 }
 
 static uint8_t *InitTempBuf(int bufLen)
 {
+    errno_t ret;
     uint8_t *buffer = NULL;
 
-    if ((bufLen <= 0) || (bufLen > HASH_FILE_MAX_SIZE)) {
+    bool variablesCheck = ((bufLen <= 0) || (bufLen > HASH_FILE_MAX_SIZE));
+    if (variablesCheck) {
         tloge("wrong buflen\n");
         return buffer;
     }
@@ -115,7 +127,8 @@ static uint8_t *InitTempBuf(int bufLen)
         return buffer;
     }
 
-    if (memset_s(buffer, (unsigned int)bufLen, 0, (unsigned int)bufLen) != EOK) {
+    ret = memset_s(buffer, (unsigned int)bufLen, 0, (unsigned int)bufLen);
+    if (ret != EOK) {
         tloge("memset failed!\n");
         free(buffer);
         buffer = NULL;
@@ -127,6 +140,7 @@ static uint8_t *InitTempBuf(int bufLen)
 
 static uint8_t *ReadXmlFile(const char *xmlFile)
 {
+    int ret;
     int bufLen;
     uint8_t *buffer = NULL;
 
@@ -137,7 +151,8 @@ static uint8_t *ReadXmlFile(const char *xmlFile)
         return buffer;
     }
 
-    if (GetFileInfo(bufLen, buffer, xmlFile) != 0) {
+    ret = GetFileInfo(bufLen, buffer, xmlFile);
+    if (ret != 0) {
         tloge("get xml file info failed\n");
         free(buffer);
         buffer = NULL;
@@ -168,14 +183,14 @@ static int TeeSetNativeCaHash(const char *xmlFlie)
     }
 
     ret = ioctl(fd, (int)(TC_NS_CLIENT_IOCTL_SET_NATIVE_IDENTITY), buffer);
-    free(buffer);
-    buffer = NULL;
-    close(fd);
-    fd = -1;
     if (ret != 0) {
         tloge("ioctl fail %d\n", ret);
     }
 
+    free(buffer);
+    buffer = NULL;
+    close(fd);
+    fd = -1;
     return ret;
 }
 
