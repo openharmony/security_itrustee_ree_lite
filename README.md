@@ -6,7 +6,7 @@
 
 ## Introduction<a name="section469617221261"></a>
 
-The itrustee\_ree\_lite module provides a set of rich execution environment \(REE\) API components for interacting with Huawei-developed TEEOS, including tzdriver \(driver\), libteec \(API library\), and teecd \(agent service\). libteec meets the GlobalPlatform \(GP\) standards and provides ClientApp \(CA\) APIs.
+The itrustee\_ree\_lite module provides a set of rich execution environment \(REE\) API components for interacting with iTrustee-developed TEEOS, including tzdriver \(driver\), libteec \(API library\), and teecd \(agent service\). libteec meets the GlobalPlatform \(GP\) standards and provides ClientApp \(CA\) APIs.
 
 ## Architecture<a name="section15884114210197"></a>
 
